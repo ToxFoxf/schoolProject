@@ -2,6 +2,7 @@ from fastapi import APIRouter, HTTPException, status, Header
 from typing import Optional
 from auth import verify_token
 from database import users_db
+from models import UserUpdate
 
 router = APIRouter(prefix="/api/users", tags=["users"])
 
