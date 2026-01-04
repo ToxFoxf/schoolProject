@@ -1,0 +1,77 @@
+.map-container {
+  background-color: #0b0c0d;
+  min-height: 100vh;
+  padding: 90px 2rem 90px;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.map-container h2 {
+  color: #eeeeee;
+  font-size: 1.8rem;
+  margin: 0 0 2rem 0;
+  font-weight: 600;
+  letter-spacing: -0.2px;
+}
+
+.map-placeholder {
+  background: linear-gradient(180deg, rgba(94, 106, 210, 0.08) 0%, transparent 100%);
+  border: 1px solid rgba(94, 106, 210, 0.3);
+  border-radius: 16px;
+  padding: 3rem;
+  text-align: center;
+  margin-bottom: 2rem;
+  min-height: 400px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+.map-placeholder svg {
+  color: #5e6ad2;
+  margin-bottom: 1rem;
+}
+
+.map-placeholder p {
+  color: #eeeeee;
+  margin: 0.5rem 0;
+  font-size: 1.1rem;
+  font-weight: 500;
+}
+
+.map-placeholder .subtitle {
+  color: #8a8f98;
+  font-size: 0.95rem;
+  margin-top: 0.5rem;
+}
+
+.orders-list {
+  background-color: #131415;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 16px;
+  padding: 2rem;
+}
+
+.orders-list h3 {
+  color: #eeeeee;
+  margin: 0 0 1.5rem 0;
+  font-weight: 600;
+  font-size: 1.1rem;
+}
+
+.empty-state {
+  text-align: center;
+  padding: 2rem;
+  color: #8a8f98;
+}
+
+.empty-state svg {
+  color: #5e6ad2;
+  margin-bottom: 1rem;
+}
+
+.empty-state p {
+  margin: 0;
+  font-size: 1rem;
+}
