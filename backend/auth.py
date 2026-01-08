@@ -5,7 +5,9 @@ import bcrypt
 import os
 
 # Configuration
-SECRET_KEY = os.getenv("JWT_SECRET", "save-food-secret-key-2024")
+SECRET_KEY = os.getenv("JWT_SECRET")
+if not SECRET_KEY:
+    raise ValueError("JWT_SECRET environment variable is not set. This is required for the app to run.")
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 30 * 24 * 60  # 30 days
 

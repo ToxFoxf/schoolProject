@@ -52,14 +52,14 @@
 }
 
 .project-item:hover {
-  background-color: rgba(94, 106, 210, 0.1);
+  background-color: rgba(128, 128, 128, 0.06);
   color: #eeeeee;
 }
 
 .project-item.active {
-  background-color: rgba(94, 106, 210, 0.2);
-  border-color: #5e6ad2;
-  color: #5e6ad2;
+  background-color: rgba(128, 128, 128, 0.12);
+  border-color: #808080;
+  color: #808080;
 }
 
 .project-item-left {
@@ -92,9 +92,9 @@
 }
 
 .btn-icon:hover {
-  background-color: rgba(94, 106, 210, 0.1);
-  color: #5e6ad2;
-  border-color: #5e6ad2;
+  background-color: rgba(128, 128, 128, 0.08);
+  color: #808080;
+  border-color: #808080;
 }
 
 .btn-delete {
@@ -154,7 +154,7 @@
   align-items: center;
   gap: 8px;
   padding: 10px 16px;
-  background-color: #5e6ad2;
+  background-color: #808080;
   color: #eeeeee;
   border: none;
   border-radius: 6px;
@@ -164,8 +164,8 @@
 }
 
 .btn-primary:hover {
-  background-color: #6f7adc;
-  box-shadow: 0 0 0 1px rgba(94, 106, 210, 0.3);
+  background-color: #999999;
+  box-shadow: 0 0 0 1px rgba(128, 128, 128, 0.3);
 }
 
 /* Issues Board */
@@ -297,13 +297,13 @@
 }
 
 .status-select:hover {
-  border-color: #5e6ad2;
+  border-color: #808080;
 }
 
 .status-select:focus {
   outline: none;
-  border-color: #5e6ad2;
-  box-shadow: 0 0 0 2px rgba(94, 106, 210, 0.2);
+  border-color: #808080;
+  box-shadow: 0 0 0 2px rgba(128, 128, 128, 0.2);
 }
 
 .priority-badge {
@@ -400,8 +400,8 @@
 .form-group textarea:focus,
 .form-group select:focus {
   outline: none;
-  border-color: #5e6ad2;
-  box-shadow: 0 0 0 2px rgba(94, 106, 210, 0.2);
+  border-color: #808080;
+  box-shadow: 0 0 0 2px rgba(128, 128, 128, 0.2);
 }
 
 .form-group textarea {

@@ -11,9 +11,10 @@ import MapPage from '../pages/MapPage/MapPage';
 import Projects from '../pages/Projects/Projects';
 
 const RoutingComponent = () => {
-  const { isAuthenticated, loading } = useAuth();
+  const { isAuthenticated, loading, isInitializing } = useAuth();
 
-  if (loading) {
+  // During initialization, show loading screen
+  if (loading || isInitializing) {
     return (
       <div style={{
         display: 'flex',

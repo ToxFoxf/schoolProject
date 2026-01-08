@@ -12,6 +12,25 @@ const Dashboard = () => {
     description: ''
   });
 
+  // Prevent rendering if user data is not ready
+  if (!user) {
+    return (
+      <div style={{
+        display: 'flex',
+        justifyContent: 'center',
+        alignItems: 'center',
+        minHeight: '100vh',
+        backgroundColor: '#0b0c0d',
+        color: '#e6e7eb'
+      }}>
+        <p>Loading dashboard...</p>
+      </div>
+    );
+  }
+
+  // Normalize user role for rendering
+  const userRole = user.role ? String(user.role).toLowerCase() : 'receiver';
+
   const handleDonorChange = (e) => {
     const { name, value } = e.target;
     setDonorForm(prev => ({ ...prev, [name]: value }));
@@ -21,6 +40,10 @@ const Dashboard = () => {
     e.preventDefault();
     addNotification(`Продукт "${donorForm.productName}" выставлен на раздачу`);
     setDonorForm({ productName: '', quantity: '', expiryDate: '', description: '' });
+  };
+
+  const handleTakeProduct = (productName) => {
+    addNotification(`Вы зарезервировали: ${productName}`);
   };
 
   const renderDonorDashboard = () => (
@@ -79,9 +102,35 @@ const Dashboard = () => {
 
       <div className="donation-history">
         <h3>История отдач</h3>
-        <div className="empty-state">
-          <Package size={40} />
-          <p>Пока нет отданных продуктов</p>
+        <div className="donations-grid">
+          <div className="donation-card">
+            <div className="donation-icon">🍞</div>
+            <h4>Хлеб ржаной</h4>
+            <p>10 шт</p>
+            <p className="status">✓ Получено</p>
+            <p className="date">2 дня назад</p>
+          </div>
+          <div className="donation-card">
+            <div className="donation-icon">🥛</div>
+            <h4>Молоко коровье</h4>
+            <p>5 л</p>
+            <p className="status">✓ Получено</p>
+            <p className="date">1 неделю назад</p>
+          </div>
+          <div className="donation-card">
+            <div className="donation-icon">🥗</div>
+            <h4>Овощная смесь</h4>
+            <p>3 кг</p>
+            <p className="status">✓ Получено</p>
+            <p className="date">2 недели назад</p>
+          </div>
+          <div className="donation-card">
+            <div className="donation-icon">🍎</div>
+            <h4>Яблоки</h4>
+            <p>15 шт</p>
+            <p className="status">✓ Получено</p>
+            <p className="date">3 недели назад</p>
+          </div>
         </div>
       </div>
     </div>
@@ -115,9 +164,28 @@ const Dashboard = () => {
 
       <div className="orders-section">
         <h3>Доступные заказы</h3>
-        <div className="empty-state">
-          <Package size={40} />
-          <p>Нет доступных заказов</p>
+        <div className="orders-grid">
+          <div className="order-card">
+            <div className="order-status">Ожидает получения</div>
+            <h4>Доставка продуктов №1</h4>
+            <p>📍 Улица Ленина, 45</p>
+            <p>🕐 Сегодня 14:00 - 16:00</p>
+            <button className="btn-accept">Принять</button>
+          </div>
+          <div className="order-card">
+            <div className="order-status">Ожидает получения</div>
+            <h4>Доставка продуктов №2</h4>
+            <p>📍 Пр. Мира, 12</p>
+            <p>🕐 Завтра 10:00 - 12:00</p>
+            <button className="btn-accept">Принять</button>
+          </div>
+          <div className="order-card">
+            <div className="order-status">Ожидает получения</div>
+            <h4>Доставка продуктов №3</h4>
+            <p>📍 Ул. Советская, 88</p>
+            <p>🕐 Завтра 15:00 - 17:00</p>
+            <button className="btn-accept">Принять</button>
+          </div>
         </div>
       </div>
     </div>
@@ -134,18 +202,53 @@ const Dashboard = () => {
       <div className="receiver-info">
         <p>Доступные продукты находятся на карте. Откройте раздел "Карта" чтобы найти ближайшие доступные продукты.</p>
       </div>
-      <div className="empty-state">
-        <Package size={40} />
-        <p>Нет доступных продуктов</p>
+
+      <div className="available-products">
+        <h3>Доступные продукты</h3>
+        <div className="products-grid">
+          <button className="product-card" onClick={() => handleTakeProduct('Пицца')}>
+            <div className="product-icon">🍕</div>
+            <h4>Пицца</h4>
+            <p>2 шт</p>
+            <p className="location">📍 2 км от вас</p>
+            <span className="product-action">Зарезервировать</span>
+          </button>
+          <button className="product-card" onClick={() => handleTakeProduct('Овощная миска')}>
+            <div className="product-icon">🥗</div>
+            <h4>Овощная миска</h4>
+            <p>3 шт</p>
+            <p className="location">📍 5 км от вас</p>
+            <span className="product-action">Зарезервировать</span>
+          </button>
+          <button className="product-card" onClick={() => handleTakeProduct('Хлеб')}>
+            <div className="product-icon">🍞</div>
+            <h4>Хлеб</h4>
+            <p>5 шт</p>
+            <p className="location">📍 1 км от вас</p>
+            <span className="product-action">Зарезервировать</span>
+          </button>
+          <button className="product-card" onClick={() => handleTakeProduct('Молоко')}>
+            <div className="product-icon">🥛</div>
+            <h4>Молоко</h4>
+            <p>10 л</p>
+            <p className="location">📍 3 км от вас</p>
+            <span className="product-action">Зарезервировать</span>
+          </button>
+        </div>
       </div>
     </div>
   );
 
   return (
     <div className="dashboard-container">
-      {user?.role === 'Donor' && renderDonorDashboard()}
-      {user?.role === 'Deliverer' && renderDelivererDashboard()}
-      {user?.role === 'Receiver' && renderReceiverDashboard()}
+      {userRole === 'donor' && renderDonorDashboard()}
+      {userRole === 'deliverer' && renderDelivererDashboard()}
+      {userRole === 'receiver' && renderReceiverDashboard()}
+      {!['donor', 'deliverer', 'receiver'].includes(userRole) && (
+        <div style={{ padding: '20px' }}>
+          <p>Dashboard not configured for this role.</p>
+        </div>
+      )}
     </div>
   );
 };

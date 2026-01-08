@@ -10,17 +10,23 @@ const Login = () => {
   const navigate = useNavigate();
   const { login } = useAuth();
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
+    setError('');
     if (!email || !password) {
       setError('Заполните все поля');
       return;
     }
-    const result = login(email, password);
+    const result = await login(email, password);
     if (result.success) {
       navigate('/dashboard');
     } else {
-      setError(result.message);
+      // Display specific error message for wrong credentials
+      if (result.message && result.message.includes('Invalid email or password')) {
+        setError('Неправильный пароль или email');
+      } else {
+        setError(result.message || 'Ошибка при входе');
+      }
     }
   };
 

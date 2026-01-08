@@ -10,29 +10,52 @@ export const AuthProvider = ({ children }) => {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [notifications, setNotifications] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [isInitializing, setIsInitializing] = useState(true);
 
   // Initialize auth state on mount
   useEffect(() => {
+    let isMounted = true;
+
     const initAuth = async () => {
-      const token = localStorage.getItem('authToken');
-      if (token) {
-        try {
-          const userData = await authAPI.verify();
-          setUser(userData.user);
-          setIsAuthenticated(true);
-          
-          // Fetch notifications
-          const notifs = await notificationsAPI.getAll();
-          setNotifications(notifs);
-        } catch (error) {
-          localStorage.removeItem('authToken');
-          setIsAuthenticated(false);
+      try {
+        const token = localStorage.getItem('authToken');
+        if (token) {
+          try {
+            const userData = await authAPI.verify();
+            if (isMounted) {
+              setUser(userData.user);
+              setIsAuthenticated(true);
+              
+              // Fetch notifications
+              const notifs = await notificationsAPI.getAll();
+              if (isMounted) {
+                setNotifications(notifs);
+              }
+            }
+          } catch (error) {
+            // Only logout on explicit 401 from backend
+            if (error.message && error.message.includes('401')) {
+              if (isMounted) {
+                localStorage.removeItem('authToken');
+                setIsAuthenticated(false);
+              }
+            }
+            // Other errors: keep auth state, let user try again
+          }
+        }
+      } finally {
+        if (isMounted) {
+          setLoading(false);
+          setIsInitializing(false);
         }
       }
-      setLoading(false);
     };
 
     initAuth();
+
+    return () => {
+      isMounted = false;
+    };
   }, []);
 
   const register = async (name, email, password, role) => {
@@ -122,6 +145,7 @@ export const AuthProvider = ({ children }) => {
         isAuthenticated,
         notifications,
         loading,
+        isInitializing,
         register,
         login,
         logout,

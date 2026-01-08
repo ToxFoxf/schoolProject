@@ -1,70 +1,110 @@
-from fastapi import APIRouter, HTTPException, status, Header
-from typing import Optional
-from auth import verify_token
-from database import users_db
-from models import UserUpdate
+"""User profile and management routes"""
+
+from fastapi import APIRouter, Depends, HTTPException, status
+from sqlalchemy.orm import Session
+import crud
+from models import UserResponse, UserUpdate
+from database import get_db
+from routes.auth import get_current_user
+from auth import verify_password
 
 router = APIRouter(prefix="/api/users", tags=["users"])
 
 
-def get_user_from_token(authorization: Optional[str] = Header(None)):
-    """Extract and verify user from authorization header"""
-    if not authorization:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="No token provided"
-        )
-    
-    try:
-        token = authorization.split(" ")[1]
-        payload = verify_token(token)
-        if not payload:
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="Invalid token"
-            )
-        return payload.get("userId")
-    except (IndexError, AttributeError):
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid token format"
-        )
+@router.get("/me", response_model=UserResponse)
+async def get_my_profile(current_user = Depends(get_current_user)):
+    """Get current user's profile"""
+    return UserResponse.from_orm(current_user)
 
 
-@router.get("/me", response_model=dict)
-async def get_current_user(authorization: Optional[str] = Header(None)):
-    """Get current user profile"""
-    user_id = get_user_from_token(authorization)
-    user = users_db.get(user_id)
-    
-    if not user:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="User not found"
-        )
-    
-    return {
-        "id": user["id"],
-        "name": user["name"],
-        "email": user["email"],
-        "role": user["role"],
-        "avatar": user["avatar"],
-        "joinedAt": user.get("joinedAt")
-    }
-
-
-@router.get("/{user_id}", response_model=dict)
-async def get_user(user_id: str, authorization: Optional[str] = Header(None)):
+@router.get("/{user_id}", response_model=UserResponse)
+async def get_user(user_id: int, db: Session = Depends(get_db)):
     """Get user by ID"""
-    current_user_id = get_user_from_token(authorization)
+    user = crud.get_user_by_id(db, user_id)
     
-    if user_id != current_user_id:
+    if not user:
         raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Not authorized"
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="User not found"
         )
     
-    user = users_db.get(user_id)
+    return UserResponse.from_orm(user)
+
+
+@router.put("/me", response_model=UserResponse)
+async def update_profile(
+    user_update: UserUpdate,
+    current_user = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Update current user's profile"""
+    # If password is being changed, require old password verification
+    if user_update.password:
+        if not user_update.old_password:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Old password required to change password"
+            )
+        if not verify_password(user_update.old_password, current_user.password_hash):
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Incorrect current password"
+            )
+    
+    updated_user = crud.update_user(
+        db,
+        current_user.id,
+        name=user_update.name,
+        avatar=user_update.avatar,
+        password=user_update.password
+    )
+    
+    if not updated_user:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Failed to update profile"
+        )
+    
+    return UserResponse.from_orm(updated_user)
+
+
+@router.put("/{user_id}", response_model=UserResponse)
+async def update_user_profile(
+    user_id: int,
+    user_update: UserUpdate,
+    current_user = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Update user profile by ID (user or admin only)"""
+    # Check if the user is updating their own profile or is admin
+    if current_user.id != user_id and not current_user.is_admin:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="You can only update your own profile"
+        )
+    
+    updated_user = crud.update_user(
+        db,
+        user_id,
+        name=user_update.name,
+        avatar=user_update.avatar,
+        password=user_update.password
+    )
+    
+    if not updated_user:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Failed to update profile"
+        )
+    
+    return UserResponse.from_orm(updated_user)
+
+
+@router.get("/{user_id}/stats")
+async def get_user_stats(user_id: int, db: Session = Depends(get_db)):
+    """Get user statistics and gamification info"""
+    user = crud.get_user_by_id(db, user_id)
+    
     if not user:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -72,69 +112,14 @@ async def get_user(user_id: str, authorization: Optional[str] = Header(None)):
         )
     
     return {
-        "id": user["id"],
-        "name": user["name"],
-        "email": user["email"],
-        "role": user["role"],
-        "avatar": user["avatar"]
+        "user_id": user.id,
+        "name": user.name,
+        "xp": user.xp,
+        "rating_level": user.rating_level,
+        "is_admin": user.is_admin,
+        "total_donations": len(user.donations),
+        "total_issues_created": len(user.issues_created),
+        "total_issues_assigned": len(user.issues_assigned),
+        "total_closed_issues": len([i for i in user.issues_assigned if i.status == "closed"])
     }
 
-
-@router.put("/{user_id}", response_model=dict)
-async def update_user(user_id: str, updates: UserUpdate, authorization: Optional[str] = Header(None)):
-    """Update user profile"""
-    current_user_id = get_user_from_token(authorization)
-    
-    if user_id != current_user_id:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Not authorized"
-        )
-    
-    user = users_db.get(user_id)
-    if not user:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="User not found"
-        )
-    
-    # Update fields
-    if updates.name:
-        user["name"] = updates.name
-    if updates.avatar is not None:
-        user["avatar"] = updates.avatar
-    if updates.password:
-        from auth import hash_password
-        user["password"] = hash_password(updates.password)
-    
-    return {
-        "id": user["id"],
-        "name": user["name"],
-        "email": user["email"],
-        "role": user["role"],
-        "avatar": user["avatar"]
-    }
-
-
-@router.get("", response_model=list)
-async def get_all_users(authorization: Optional[str] = Header(None)):
-    """Get all users (for team features)"""
-    current_user_id = get_user_from_token(authorization)
-    
-    if not is_admin(current_user_id):
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Admin access denied"
-        )
-    
-    users = []
-    for user in users_db.values():
-        users.append({
-            "id": user["id"],
-            "name": user["name"],
-            "email": user["email"],
-            "role": user["role"],
-            "avatar": user["avatar"]
-        })
-    
-    return users

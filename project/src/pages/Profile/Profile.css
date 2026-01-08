@@ -48,11 +48,35 @@
   letter-spacing: -0.2px;
 }
 
+.profile-stats {
+  display: flex;
+  gap: 1.5rem;
+  margin: 0.75rem 0;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+.profile-stats .stat {
+  color: #8a8f98;
+  font-size: 0.9rem;
+  font-weight: 500;
+  padding: 0.4rem 0.8rem;
+  background: rgba(94, 106, 210, 0.1);
+  border-radius: 6px;
+  border: 1px solid rgba(94, 106, 210, 0.2);
+}
+
+.avatar-display {
+  font-size: 2rem;
+  margin: 0.5rem 0;
+  display: inline-block;
+}
+
 .profile-role {
   margin: 0;
   display: inline-block;
-  background: linear-gradient(180deg, rgba(94, 106, 210, 0.2) 0%, rgba(94, 106, 210, 0.1) 100%);
-  color: #5e6ad2;
+  background: linear-gradient(180deg, rgba(128, 128, 128, 0.1) 0%, rgba(128, 128, 128, 0.05) 100%);
+  color: #808080;
   padding: 0.4rem 1rem;
   border-radius: 20px;
   font-size: 0.75rem;
@@ -143,10 +167,14 @@
 
 .email-row .form-value {
   flex: 1;
+  min-height: 38px;
+  display: flex;
+  align-items: center;
 }
 
 .password-row .form-input {
   flex: 1;
+  min-height: 38px;
 }
 
 .icon-btn {
@@ -163,8 +191,8 @@
 }
 
 .icon-btn:hover {
-  color: #5e6ad2;
-  background-color: rgba(94, 106, 210, 0.1);
+  color: #808080;
+  background-color: rgba(128, 128, 128, 0.08);
 }
 
 .card-actions {
@@ -175,6 +203,7 @@
 
 .btn {
   flex: 1;
+  min-height: 44px;
   padding: 0.75rem 1rem;
   border: 1px solid rgba(255, 255, 255, 0.12);
   border-radius: 8px;
@@ -247,7 +276,7 @@
 }
 
 .stat-value {
-  color: #5e6ad2;
+  color: #808080;
   font-size: 1.8rem;
   font-weight: 700;
   margin-bottom: 0.5rem;

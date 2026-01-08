@@ -104,6 +104,10 @@ const Profile = () => {
         </div>
         <div className="profile-info">
           <h1>{user?.name}</h1>
+          <div className="profile-stats">
+            <span className="stat">⭐ {user?.rating_level || 'Bronze'}</span>
+            <span className="stat">🎯 {user?.xp || 0} XP</span>
+          </div>
           <p className="profile-role">{user?.role}</p>
         </div>
       </div>

@@ -1,103 +1,230 @@
-from fastapi import APIRouter, HTTPException, status, Header
-from typing import Optional, List
-from datetime import datetime
-from uuid import uuid4
-from auth import verify_token
-from database import issues_db, projects_db
-from models import IssueCreate, IssueUpdate, IssueStatusUpdate
+"""Volunteer task and issue management routes"""
+
+from fastapi import APIRouter, Depends, HTTPException, Header, status
+from sqlalchemy.orm import Session
+from typing import List, Optional
+import crud
+from models import (
+    IssueCreate, IssueUpdate, IssueResponse, IssueDetailResponse,
+    IssueCategory, IssueStatusUpdate
+)
+from database import get_db
+from routes.auth import get_current_user
 
 router = APIRouter(prefix="/api/issues", tags=["issues"])
 
 
-def get_user_from_token(authorization: Optional[str] = Header(None)):
-    """Extract and verify user from authorization header"""
-    if not authorization:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="No token provided"
-        )
-    
-    try:
-        token = authorization.split(" ")[1]
-        payload = verify_token(token)
-        if not payload:
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="Invalid token"
-            )
-        return payload.get("userId")
-    except (IndexError, AttributeError):
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid token format"
-        )
+# ============ ISSUE ENDPOINTS ============
 
-
-@router.get("", response_model=list)
-async def get_issues(project_id: Optional[str] = None, authorization: Optional[str] = Header(None)):
+@router.get("", response_model=List[IssueResponse])
+async def get_issues(
+    project_id: Optional[int] = None,
+    skip: int = 0,
+    limit: int = 100,
+    db: Session = Depends(get_db)
+):
     """Get issues, optionally filtered by project"""
-    user_id = get_user_from_token(authorization)
+    if project_id:
+        issues = crud.get_issues_by_project(db, project_id, skip=skip, limit=limit)
+    else:
+        from models import IssueDB
+        issues = db.query(IssueDB).offset(skip).limit(limit).all()
     
-    result = []
-    for issue in issues_db.values():
-        if project_id:
-            if issue["projectId"] != project_id:
-                continue
-            # Check if user is member of project
-            project = projects_db.get(project_id)
-            if project and user_id not in project["members"]:
-                continue
-        
-        result.append({
-            "id": issue["id"],
-            "title": issue["title"],
-            "description": issue["description"],
-            "projectId": issue["projectId"],
-            "createdBy": issue["createdBy"],
-            "assignedTo": issue["assignedTo"],
-            "status": issue["status"],
-            "priority": issue["priority"],
-            "createdAt": issue["createdAt"]
-        })
-    
-    return result
+    return [IssueResponse.from_orm(issue) for issue in issues]
 
 
-@router.post("", response_model=dict)
-async def create_issue(issue: IssueCreate, authorization: Optional[str] = Header(None)):
-    """Create a new issue"""
-    user_id = get_user_from_token(authorization)
-    
+@router.post("", response_model=IssueResponse)
+async def create_issue(
+    issue_data: IssueCreate,
+    current_user = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Create a new volunteer task/issue"""
     # Check if project exists
-    project = projects_db.get(issue.projectId)
+    project = crud.get_project_by_id(db, issue_data.project_id)
     if not project:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Project not found"
         )
     
-    # Check if user is member of project
-    if user_id not in project["members"]:
+    db_issue = crud.create_issue(
+        db,
+        project_id=issue_data.project_id,
+        reporter_id=current_user.id,
+        title=issue_data.title,
+        description=issue_data.description or "",
+        category=issue_data.category,
+        priority=issue_data.priority,
+        due_date=issue_data.due_date
+    )
+    
+    return IssueResponse.from_orm(db_issue)
+
+
+@router.get("/{issue_id}", response_model=IssueDetailResponse)
+async def get_issue_detail(issue_id: int, db: Session = Depends(get_db)):
+    """Get issue details with all relationships"""
+    issue = crud.get_issue_by_id(db, issue_id)
+    
+    if not issue:
         raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Not authorized to create issues in this project"
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Issue not found"
         )
     
-    issue_id = f"issue-{uuid4().hex[:8]}"
-    new_issue = {
-        "id": issue_id,
-        "title": issue.title,
-        "description": issue.description or "",
-        "projectId": issue.projectId,
-        "createdBy": user_id,
-        "assignedTo": issue.assignedTo,
-        "status": "open",
-        "priority": issue.priority or "medium",
-        "createdAt": datetime.now().isoformat()
+    return IssueDetailResponse.from_orm(issue)
+
+
+@router.put("/{issue_id}", response_model=IssueResponse)
+async def update_issue(
+    issue_id: int,
+    issue_update: IssueUpdate,
+    current_user = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Update issue information"""
+    issue = crud.get_issue_by_id(db, issue_id)
+    
+    if not issue:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Issue not found"
+        )
+    
+    # Only reporter or project owner can update
+    if issue.reporter_id != current_user.id and issue.project.owner_id != current_user.id:
+        if not current_user.is_admin:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Only issue reporter or project owner can update"
+            )
+    
+    updated_issue = crud.update_issue(
+        db,
+        issue_id,
+        title=issue_update.title,
+        description=issue_update.description,
+        status=issue_update.status,
+        category=issue_update.category,
+        priority=issue_update.priority
+    )
+    
+    return IssueResponse.from_orm(updated_issue)
+
+
+# ============ VOLUNTEER ASSIGNMENT (GAMIFICATION) ============
+
+@router.post("/{issue_id}/assign", response_model=IssueResponse)
+async def assign_volunteer(
+    issue_id: int,
+    current_user = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Assign current user as volunteer to the issue"""
+    issue = crud.get_issue_by_id(db, issue_id)
+    
+    if not issue:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Issue not found"
+        )
+    
+    if issue.status == "closed":
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Cannot assign to closed issue"
+        )
+    
+    assigned_issue = crud.assign_volunteer(db, issue_id, current_user.id)
+    
+    return IssueResponse.from_orm(assigned_issue)
+
+
+@router.post("/{issue_id}/close", response_model=IssueResponse)
+async def close_issue(
+    issue_id: int,
+    current_user = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Close an issue and award XP to assignee"""
+    issue = crud.get_issue_by_id(db, issue_id)
+    
+    if not issue:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Issue not found"
+        )
+    
+    # Only reporter or project owner can close
+    if issue.reporter_id != current_user.id and issue.project.owner_id != current_user.id:
+        if not current_user.is_admin:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Only issue reporter or project owner can close"
+            )
+    
+    closed_issue = crud.close_issue(db, issue_id)
+    
+    if not closed_issue or not closed_issue.assignee_id:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Issue must be assigned to a volunteer before closing"
+        )
+    
+    return IssueResponse.from_orm(closed_issue)
+
+
+@router.get("/{issue_id}/assignee-stats")
+async def get_assignee_stats(issue_id: int, db: Session = Depends(get_db)):
+    """Get stats about the volunteer assigned to this issue"""
+    issue = crud.get_issue_by_id(db, issue_id)
+    
+    if not issue:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Issue not found"
+        )
+    
+    if not issue.assignee:
+        return {"message": "No volunteer assigned to this issue"}
+    
+    return {
+        "assignee_id": issue.assignee.id,
+        "assignee_name": issue.assignee.name,
+        "xp": issue.assignee.xp,
+        "rating_level": issue.assignee.rating_level,
+        "issues_completed": len([i for i in issue.assignee.issues_assigned if i.status == "closed"])
     }
+
+
+@router.delete("/{issue_id}")
+async def delete_issue(
+    issue_id: int,
+    current_user = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Delete an issue (only reporter or admin can delete)"""
+    issue = crud.get_issue_by_id(db, issue_id)
     
-    issues_db[issue_id] = new_issue
+    if not issue:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Issue not found"
+        )
     
+    if issue.reporter_id != current_user.id and not current_user.is_admin:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only issue reporter or admin can delete"
+        )
+    
+    from models import IssueDB
+    db.delete(issue)
+    db.commit()
+    
+    return {"message": "Issue deleted"}
+
     return new_issue
 
 

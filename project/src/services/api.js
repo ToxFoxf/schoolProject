@@ -37,7 +37,7 @@ const apiCall = async (endpoint, method = 'GET', data = null) => {
     const result = await response.json();
 
     if (!response.ok) {
-      throw new Error(result.error || 'API Error');
+      throw new Error(result.detail || result.error || 'API Error');
     }
 
     return result;
@@ -66,7 +66,9 @@ export const usersAPI = {
   getUser: (id) => apiCall(`/users/${id}`, 'GET'),
   updateProfile: (id, data) =>
     apiCall(`/users/${id}`, 'PUT', data),
-  getAllUsers: () => apiCall('/users', 'GET')
+  getAllUsers: () => apiCall('/users', 'GET'),
+  updateMe: (data) =>
+    apiCall('/users/me', 'PUT', data)  // Use /me endpoint for current user
 };
 
 // Projects API
